@@ -32,6 +32,11 @@ Before creating, resizing, or launching ANY OCI resource:
 
 ### Cost safety expected to stay in place
 - Keep the tenancy **budget + alert** active (this project: $5/month → user's email).
+- Keep the **`always-free-guardrail` quota policy** active (`scripts/04-quota-guardrail.sh`).
+  It hard-caps A1 to 2 OCPU / 12 GB, block storage to 200 GB, and zeroes paid compute shapes.
+  **Do not delete or loosen it to make a task succeed** — if a task needs paid capacity, stop
+  and ask the user first. Note Pay-As-You-Go silently raises service limits (A1 cores 2 → 250),
+  so this quota is the only hard stop.
 - Prefer `scripts/manage.sh stop` over leaving paid/test instances running.
 - After any test on paid resources, terminate them (`scripts/teardown.sh`).
 

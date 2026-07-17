@@ -18,6 +18,9 @@ Runs on **ARM (Always Free)** via box64 emulation, or **x86 (paid, native)**.
 - **Off-site backups** — compressed saves pushed to OCI Object Storage on a schedule,
   auto-expiring (well within the 20 GB free tier).
 - **Management scripts** — start/stop/status/logs/ssh, reset the world, full teardown.
+- **Always-Free guardrail** — a compartment quota that *hard-caps* the tenancy to free-tier
+  allowances, so a mistake can't provision paid compute. Important on Pay-As-You-Go, which
+  silently raises your service limits (A1 cores 2 → 250).
 
 ## Prerequisites
 
@@ -38,6 +41,7 @@ Runs on **ARM (Always Free)** via box64 emulation, or **x86 (paid, native)**.
 
 ```bash
 cp config.env.example config.env      # then edit: region, passwords, server name...
+scripts/04-quota-guardrail.sh         # (do this first) hard-cap the tenancy to Always Free
 scripts/01-network.sh                 # create the VCN/subnet/firewall
 scripts/02-launch.sh                  # launch the instance; it self-deploys Palworld
 scripts/03-backup-setup.sh            # (optional) off-site backups to Object Storage

@@ -54,9 +54,39 @@ for testing (native, no emulation) but not free. Remember **1 OCPU = 2 vCPUs** o
 
 ## Cost safety
 
-Set a **budget + alert** so a stray paid resource can't surprise you:
+Two layers — a budget *detects* overspend after the fact; a quota *prevents* it up front.
+
+### 1. Budget + alert (detective)
 - Console: Billing → Budgets → create a budget on the root compartment with a 100% alert.
 - This project's account has a **$5/month** budget alert wired to email.
+
+### 2. Compartment quota (preventive) — `scripts/04-quota-guardrail.sh`
+**Upgrading to Pay-As-You-Go silently RAISES your service limits** — the free-tier caps stop
+applying. Observed on this tenancy after upgrading:
+
+| Limit | Free trial | After PAYG upgrade |
+|---|---|---|
+| `standard-a1-core-count` | 2 | **250** |
+| `standard-a1-memory-count` | 12 | **1666** |
+| `standard-e5-core-count` (paid x86) | 0 | **83** |
+
+Nothing then stops an expensive deployment. The quota policy `always-free-guardrail` puts the
+ceiling back by policy: A1 capped at 2 OCPU / 12 GB, block storage 200 GB, and all paid compute
+shapes zeroed (`VM.Standard.E2.1.Micro` is left alone — it's Always Free).
+
+**Gotchas when working with quotas:**
+- Quota **families differ by resource**: cores → `compute-core`, memory → `compute-memory`,
+  storage → `block-storage`. Using `compute-core` for a memory quota is rejected.
+- Quotas **can** target the root compartment via `in tenancy` — no child compartment needed.
+- **`oci limits value list` does NOT reflect quotas.** It shows the raw service limit and will
+  still read `250`. The number that gates provisioning is `effective-quota-value` from:
+  ```bash
+  oci limits resource-availability get --service-name compute \
+    --limit-name standard-a1-core-count -c <tenancy> --availability-domain <AD>
+  ```
+- Quotas apply to **new** provisioning only; existing resources keep running.
+- Bonus: with A1 capped at exactly 2 cores and 2 in use, `available` is 0 — which would have
+  prevented the duplicate/orphan instance this project once created via a stray retry loop.
 
 ## Backups
 
