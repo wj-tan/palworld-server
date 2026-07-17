@@ -1,0 +1,25 @@
+# Secrets & live state — never commit these
+config.env
+state/*.env
+build/
+*.log
+
+# Local machine config (permissions, paths — not portable)
+.claude/settings.local.json
+
+# Keys / credentials — belt and braces
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+oci_api_key*
+*secrets*
+
+# Local backups of save data
+deleted-character-backup/
+*.sav
+*.tar.gz
+
+# OS noise
+.DS_Store
+Thumbs.db
