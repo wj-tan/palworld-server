@@ -92,3 +92,7 @@ docs/OCI-NOTES.md         free-tier limits + the gotchas this project already ha
 
 See `docs/OCI-NOTES.md` before your first run — it explains the free-tier math and the
 non-obvious OCI issues (host firewall, OCPU vs vCPU, box64 caveats) this setup solves.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
