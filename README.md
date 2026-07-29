@@ -17,6 +17,8 @@ Runs on **ARM (Always Free)** via box64 emulation, or **x86 (paid, native)**.
 - **Capacity retry** — the launcher retries through the free-tier "Out of host capacity" error.
 - **Off-site backups** — compressed saves pushed to OCI Object Storage on a schedule,
   auto-expiring (well within the 20 GB free tier).
+- **One-command updates** — pull the latest Palworld build with an automatic pre-update
+  backup, and auto-recovery if the ARM/box64 download stalls.
 - **Management scripts** — start/stop/status/logs/ssh, reset the world, full teardown.
 - **Always-Free guardrail** — a compartment quota that *hard-caps* the tenancy to free-tier
   allowances, so a mistake can't provision paid compute. Important on Pay-As-You-Go, which
@@ -64,6 +66,7 @@ using `SERVER_PASSWORD` from your `config.env` if set.
 | `scripts/manage.sh logs` | Tail the Palworld container logs |
 | `scripts/manage.sh restart` | Restart just the game container |
 | `scripts/manage.sh ssh` | Interactive SSH into the instance |
+| `scripts/update-server.sh [--no-backup] [--no-wait]` | Update to the latest Palworld build (backs up first) |
 | `scripts/reset-world.sh [--purge-offsite]` | Wipe saves for a fresh world |
 | `scripts/teardown.sh [--all]` | Terminate instance (`--all` also deletes network + bucket) |
 
@@ -74,6 +77,25 @@ existing server, SSH in and edit `~/palworld/docker-compose.yml`, then
 `docker compose up -d`. The container supports many `PalWorldSettings.ini` overrides as
 env vars (XP rate, capture rate, day length, etc.) — see the
 [image docs](https://palworld-server-docker.loef.dev/).
+
+## Updating to a new Palworld version
+
+When Palworld ships an update, run:
+
+```bash
+scripts/update-server.sh
+```
+
+It takes a fresh off-site backup, pulls the latest server image, and recreates the container
+so SteamCMD downloads the new build on boot (`UPDATE_ON_BOOT=true`).
+Your world is stored on a separate volume, so it is preserved across the update.
+
+On ARM the SteamCMD verify step sometimes falls back to a full ~5 GB re-download and can even
+freeze mid-download under box64.
+The script waits for the server to report healthy and automatically nudges a stalled download
+with a container restart, so you can leave it running.
+Use `--no-backup` to skip the pre-update backup, or `--no-wait` to start the update and return
+immediately (then watch `scripts/manage.sh logs`).
 
 ## Layout
 
