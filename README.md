@@ -17,6 +17,8 @@ Runs on **ARM (Always Free)** via box64 emulation, or **x86 (paid, native)**.
 - **Capacity retry** — the launcher retries through the free-tier "Out of host capacity" error.
 - **Off-site backups** — compressed saves pushed to OCI Object Storage on a schedule,
   auto-expiring (well within the 20 GB free tier).
+- **Save import** — load an existing world (e.g. a converted single-player save) onto the
+  server in one command, with an automatic pre-import backup and a printed rollback command.
 - **One-command updates** — pull the latest Palworld build with an automatic pre-update
   backup, and auto-recovery if the ARM/box64 download stalls.
 - **Management scripts** — start/stop/status/logs/ssh, reset the world, full teardown.
@@ -67,6 +69,7 @@ using `SERVER_PASSWORD` from your `config.env` if set.
 | `scripts/manage.sh restart` | Restart just the game container |
 | `scripts/manage.sh ssh` | Interactive SSH into the instance |
 | `scripts/update-server.sh [--no-backup] [--no-wait]` | Update to the latest Palworld build (backs up first) |
+| `scripts/import-save.sh <save.zip\|.tar.gz\|dir>` | Load an existing/converted world onto the server (backs up first) |
 | `scripts/reset-world.sh [--purge-offsite]` | Wipe saves for a fresh world |
 | `scripts/teardown.sh [--all]` | Terminate instance (`--all` also deletes network + bucket) |
 
@@ -77,6 +80,63 @@ existing server, SSH in and edit `~/palworld/docker-compose.yml`, then
 `docker compose up -d`. The container supports many `PalWorldSettings.ini` overrides as
 env vars (XP rate, capture rate, day length, etc.) — see the
 [image docs](https://palworld-server-docker.loef.dev/).
+
+## Loading an existing world (save import)
+
+To move an existing world onto the server - a converted single-player/co-op save, a backup from
+another host, or one of this project's own off-site snapshots:
+
+```bash
+scripts/import-save.sh Palworld-converted-save.zip
+```
+
+It accepts a `.zip`, a `.tar.gz`, or a directory, and finds the save root by locating `Level.sav`
+inside it.
+Archives that wrap the files in a folder, or that contain a whole `SaveGames/0/<WorldID>` tree,
+work as-is.
+
+The files are installed into the world folder the server is already configured to load
+(`DedicatedServerName` in `GameUserSettings.ini`), so the world ID, your server settings and the
+backup cron all keep working - nothing needs re-pointing.
+
+Before anything is overwritten the script flushes the live world to disk with an RCON `Save`,
+takes a fresh off-site backup, and writes a local rollback tarball to
+`~/palworld/import-rollback/` on the server (the last 5 are kept).
+It then stops the container, swaps the files in, restarts, waits for the server to report healthy,
+and prints the exact rollback command.
+
+| Option | Does |
+|---|---|
+| `--with-world-option` | Also import `WorldOption.sav` (see the caveat below) |
+| `--keep-players` | Keep the player saves already on the server; import only the world |
+| `--world <ID>` | Target a specific world folder instead of the configured one |
+| `--no-backup` | Skip the pre-import off-site backup (the rollback tarball is still written) |
+| `--yes` | Skip the confirmation prompt |
+
+Two files in a typical converted save are skipped by default:
+
+- **`WorldOption.sav`** takes priority over `PalWorldSettings.ini` on a dedicated server, so
+  importing it silently discards the game settings from your `config.env` (player cap, passwords,
+  rates).
+  Pass `--with-world-option` only if you specifically want the world's original settings to win.
+  Any `WorldOption.sav` already on the server is removed unless you pass that flag, so the two
+  runs stay consistent.
+- **`LocalData.sav`** is a single-player-only file that a dedicated server never reads.
+
+A few things to know:
+
+- **Converting a save is a separate step.** This script imports a save that is already in
+  dedicated-server form; use a tool such as
+  [`palworld-save-tools`](https://github.com/cheahjs/palworld-save-tools) to convert a
+  single-player/Xbox save first, so the player UIDs match what a dedicated server expects.
+- **The server rewrites the save on its next autosave**, so file sizes will not match the archive
+  afterwards - it re-serializes the world and drops single-player-only data.
+  The real check is joining the server and seeing your bases and characters.
+- **Players online are disconnected** by the container restart; the script warns if anyone is on.
+- **First boot after the swap can take a while**, because the restart re-runs SteamCMD
+  (`UPDATE_ON_BOOT=true`) and may pull a new Palworld build.
+  The script waits up to ~20 minutes for a healthy status; the import itself is already on disk,
+  so Ctrl-C is safe.
 
 ## Updating to a new Palworld version
 

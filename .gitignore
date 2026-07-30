@@ -15,10 +15,11 @@ id_ed25519*
 oci_api_key*
 *secrets*
 
-# Local backups of save data
+# Local backups of save data + save archives handed to scripts/import-save.sh
 deleted-character-backup/
 *.sav
 *.tar.gz
+*.zip
 
 # OS noise
 .DS_Store
