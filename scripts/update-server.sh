@@ -17,7 +17,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_config
 state_load instance.env
-[ -n "${INSTANCE_ID:-}" ] || die "No instance in state/instance.env. Launch one first."
+[ -n "${INSTANCE_ID:-}" ] || die "No instance in state/instance.env. Run scripts/init-state.sh, or launch one first."
 
 NO_BACKUP=false; NO_WAIT=false
 for a in "$@"; do

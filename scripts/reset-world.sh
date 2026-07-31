@@ -5,7 +5,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_config
 state_load instance.env
-[ -n "${PUBLIC_IP:-}" ] || die "No running instance."
+refresh_ip   # the IP is ephemeral; never SSH at a stale one before wiping saves
 
 printf '\033[0;31mThis permanently deletes the world + all character saves.\033[0m\n'
 read -r -p "Type 'reset' to confirm: " ans

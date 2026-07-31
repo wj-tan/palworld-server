@@ -73,7 +73,21 @@ using `SERVER_PASSWORD` from your `config.env` if set.
 | `scripts/update-server.sh [--no-backup] [--no-wait]` | Update to the latest Palworld build (backs up first) |
 | `scripts/import-save.sh <save.zip\|.tar.gz\|dir>` | Load an existing/converted world onto the server (backs up first) |
 | `scripts/reset-world.sh [--purge-offsite]` | Wipe saves for a fresh world |
+| `scripts/init-state.sh [--instance-id <ocid>]` | Rebuild `state/` from OCI on a machine that never launched the server |
 | `scripts/teardown.sh [--all]` | Terminate instance (`--all` also deletes network + bucket) |
+
+## Running from a second machine
+
+`state/`, `config.env` and your SSH keypair are all gitignored, so a fresh clone has none of them.
+To drive an existing server from another machine:
+
+1. Configure the OCI CLI (`oci setup config`) and copy `config.env` across, or recreate it - `INSTANCE_NAME` and `VCN_NAME` must match what the server was actually launched with.
+2. Run `scripts/init-state.sh`. It finds the instance and network in OCI and writes `state/instance.env` and `state/network.env`.
+3. Copy the SSH private key (the `SSH_PRIVATE_KEY` path in `config.env`).
+
+Step 3 is the one that cannot be automated: the private key does not exist in OCI.
+Without it, `manage.sh ip|start|stop` still work because they only call the OCI API, but anything
+that reaches the box over SSH (`ssh`, `logs`, `restart`, `import-save.sh`, `update-server.sh`) does not.
 
 ## Changing game/server settings
 

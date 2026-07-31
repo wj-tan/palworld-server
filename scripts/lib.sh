@@ -72,11 +72,26 @@ state_load() { # state_load <file>
   local f="$STATE_DIR/$1"; [ -f "$f" ] && source "$f" || true
 }
 
+# --- Re-fetch the public IP from OCI and persist it ---
+# The public IP is ephemeral: a stop/start can hand back a different one, so
+# anything reached over SSH should refresh first. Deliberately NOT called from
+# server_ssh, which runs inside polling loops where an extra API call per
+# iteration would be wasteful. Sets PUBLIC_IP in the caller's scope.
+refresh_ip() {
+  state_load instance.env
+  [ -n "${INSTANCE_ID:-}" ] || die "No instance in state/instance.env. Run scripts/init-state.sh, or launch one first."
+  PUBLIC_IP="$(oci compute instance list-vnics --instance-id "$INSTANCE_ID" \
+    --query 'data[0]."public-ip"' --raw-output 2>/dev/null || true)"
+  [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "null" ] \
+    || die "Instance has no public IP. Is it running? Try: scripts/manage.sh start"
+  state_set instance.env PUBLIC_IP "$PUBLIC_IP"
+}
+
 # --- SSH/SCP wrappers to the current instance ---
 ssh_key() { eval echo "${SSH_PRIVATE_KEY}"; }
 server_ssh() { # server_ssh "<remote command>"
   state_load instance.env
-  [ -n "${PUBLIC_IP:-}" ] || die "No PUBLIC_IP in state/instance.env. Launch the instance first."
+  [ -n "${PUBLIC_IP:-}" ] || die "No PUBLIC_IP in state/instance.env. Run scripts/init-state.sh, or launch the instance first."
   ssh -i "$(ssh_key)" -o StrictHostKeyChecking=no -o ConnectTimeout=20 "ubuntu@${PUBLIC_IP}" "$@"
 }
 server_scp() { # server_scp <local> <remote>
