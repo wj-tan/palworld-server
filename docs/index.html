@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>palworld-on-oci · a Palworld dedicated server on Oracle's Always Free tier</title>
+<meta name="description" content="A config-driven setup for a Palworld dedicated server on Oracle Cloud: networking, a self-deploying instance, off-site backups, and a quota that hard-caps the tenancy to the Always Free tier.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b1316'/><circle cx='16' cy='16' r='6' fill='%2335cfbe'/></svg>">
+<link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.classList.remove('no-js');document.documentElement.classList.add('js');
+(function(){try{var t=localStorage.getItem('pw-theme');if(t){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="wordmark" href="#top"><span class="dot"></span>palworld-on-oci</a>
+    <nav class="topnav">
+      <a class="hide-sm" href="#free-tier">free-tier math</a>
+      <a class="hide-sm" href="#capabilities">what you get</a>
+      <a class="hide-xs" href="#quick-start">quick start</a>
+      <a class="repo" href="https://github.com/wj-tan/palworld-server">GitHub</a>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch colour theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.6v2M12 19.4v2M2.6 12h2M19.4 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M18.6 5.4l-1.4 1.4M6.8 17.2l-1.4 1.4"></path>
+        </svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============================ hero ============================ -->
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div class="hero-copy">
+        <span class="eyebrow" data-hero><b>always free</b> · ARM Ampere A1 · 2 OCPU / 12 GB</span>
+        <h1 data-hero>Palworld dedicated server. Oracle free tier. One config file.</h1>
+        <p class="hero-sub" data-hero>
+          Provision the network, launch a self-deploying instance, and push the world off-site
+          for backup - all from your shell. Sized to fill Oracle's Always Free allowance exactly,
+          and quota-capped so a paid resource can't be created by accident.
+        </p>
+        <div class="hero-actions" data-hero>
+          <a class="btn btn-primary" href="#quick-start">Quick start</a>
+          <a class="btn btn-ghost" href="https://github.com/wj-tan/palworld-server">View on GitHub</a>
+        </div>
+        <div class="hero-meta" data-hero>
+          <span>Bash + <b>OCI CLI</b></span>
+          <span>ARM <b>box64</b>, or x86 native</span>
+          <span><b>MIT</b> licensed</span>
+        </div>
+      </div>
+
+      <div class="hero-term" data-hero>
+        <div class="term">
+          <div class="term-bar">
+            <span>palworld-server &mdash; bash</span>
+            <button class="replay" id="replay" type="button">replay</button>
+            <span class="live"><i></i>live</span>
+          </div>
+          <div class="term-body" id="term">
+            <div class="term-line cmd">cp config.env.example config.env</div>
+            <div class="term-line cmd">scripts/04-quota-guardrail.sh</div>
+            <div class="term-line ok" data-pause="420">  [ok] quota applied - A1 hard-capped at 2 OCPU / 12 GB</div>
+            <div class="term-line cmd">scripts/01-network.sh</div>
+            <div class="term-line ok" data-pause="420">  [ok] vcn, subnet, gateway - udp/8211 udp/27015 tcp/22</div>
+            <div class="term-line cmd">scripts/02-launch.sh</div>
+            <div class="term-line wait" data-pause="520">  ...  out of host capacity - retrying (attempt 3)</div>
+            <div class="term-line ok" data-pause="900">  [ok] instance RUNNING - cloud-init deploying Palworld</div>
+            <div class="term-line cmd">scripts/manage.sh status</div>
+            <div class="term-line key" data-pause="380">  instance    RUNNING    VM.Standard.A1.Flex 2 OCPU/12 GB</div>
+            <div class="term-line key" data-pause="90">  container   healthy    palworld-server</div>
+            <div class="term-line key" data-pause="90">  connect     203.0.113.42:8211</div>
+            <div class="term-line free" data-pause="240">  month to date                                     $0.00</div>
+          </div>
+        </div>
+        <p class="term-note">example output &mdash; 203.0.113.42 is a documentation address</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= free-tier math ======================= -->
+  <section class="sec band" id="free-tier">
+    <div class="wrap">
+      <div class="legend reveal"><span>free-tier math</span></div>
+      <div class="sec-head">
+        <h2 class="reveal">Sized to fill the allowance, then stop.</h2>
+        <p class="lede reveal">
+          Always Free gives you 1,500 OCPU-hours and 9,000 GB-hours of Ampere A1 per month.
+          A single instance at 2 OCPU / 12 GB, running continuously, consumes almost exactly
+          that - which is why the default config is 2 OCPU / 12 GB and nothing more.
+        </p>
+      </div>
+
+      <div class="meters" id="meters">
+        <div class="meter reveal" data-pct="0.992">
+          <div class="meter-top">
+            <span class="meter-name">A1 compute</span>
+            <span class="meter-val nums" data-count="1488" data-suffix=" / 1,500 OCPU-hrs">0 / 1,500 OCPU-hrs</span>
+            <span class="meter-pct nums">99.2%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill sand"></div></div>
+        </div>
+
+        <div class="meter reveal" data-pct="0.992">
+          <div class="meter-top">
+            <span class="meter-name">A1 memory</span>
+            <span class="meter-val nums" data-count="8928" data-suffix=" / 9,000 GB-hrs">0 / 9,000 GB-hrs</span>
+            <span class="meter-pct nums">99.2%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill sand"></div></div>
+        </div>
+
+        <div class="meter reveal" data-pct="0.25">
+          <div class="meter-top">
+            <span class="meter-name">Block storage</span>
+            <span class="meter-val nums" data-count="50" data-suffix=" / 200 GB boot volume">0 / 200 GB boot volume</span>
+            <span class="meter-pct nums">25.0%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="meter-foot reveal">
+        <span>Object Storage <b>&lt;0.1 of 20 GB</b></span>
+        <span>Outbound transfer <b>10 TB/mo included</b></span>
+        <span>VCNs <b>1 of 2</b></span>
+      </div>
+
+      <p class="lede reveal" style="margin-top: var(--s5)">
+        Figures are for a 31-day month, the worst case. Palworld ships x86-only binaries, so on
+        Ampere the server runs under box64 emulation: a slow first boot in exchange for free
+        hardware. Setting <code class="mono">ARCH=x86</code> switches to a native AMD shape, which
+        is <em>paid</em> - the scripts say so before they launch it.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================== capabilities ======================== -->
+  <section class="sec" id="capabilities">
+    <div class="wrap">
+      <div class="legend reveal"><span>what you get</span></div>
+      <div class="sec-head">
+        <h2 class="reveal">Every part of the setup is a script you can read.</h2>
+        <p class="lede reveal">
+          No console clicking, no Terraform state to babysit. Each stage is a short bash script
+          driven by one <code class="mono">config.env</code>, and each one is safe to re-run.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <article class="card reveal">
+          <h3>One-command network</h3>
+          <p>Creates the VCN, internet gateway, route table, security list and subnet, and opens the
+            game ports at <em>both</em> layers - OCI security list and the instance's own iptables.</p>
+          <code>scripts/01-network.sh</code>
+        </article>
+
+        <article class="card reveal">
+          <h3>Self-deploying instance</h3>
+          <p>cloud-init waits out the boot-time apt lock, installs Docker, and brings up
+            palworld-server-docker on first boot. Nothing to configure over SSH.</p>
+          <code>scripts/02-launch.sh</code>
+        </article>
+
+        <article class="card reveal">
+          <h3>Capacity retry</h3>
+          <p>Free ARM capacity comes and goes. The launcher backs off through "Out of host capacity"
+            and 429 throttling until a host frees up, instead of failing at you.</p>
+          <code>out of host capacity &rarr; retry</code>
+        </article>
+
+        <article class="card reveal">
+          <h3>Off-site backups</h3>
+          <p>Compressed saves pushed to Object Storage every six hours through a write-only
+            pre-authenticated request, so no credentials ever sit on the box. Auto-expiring.</p>
+          <code>scripts/03-backup-setup.sh</code>
+        </article>
+
+        <article class="card reveal">
+          <h3>Save import</h3>
+          <p>Move an existing world onto the server. Flushes the live world with RCON, backs up,
+            swaps the files in, waits for healthy, and prints the exact rollback command.</p>
+          <code>scripts/import-save.sh save.zip</code>
+        </article>
+
+        <article class="card reveal">
+          <h3>Always-Free guardrail</h3>
+          <p>A compartment quota that hard-caps the whole tenancy to free-tier allowances, so a
+            stray retry loop or a wrong shape simply cannot provision paid compute.</p>
+          <code>scripts/04-quota-guardrail.sh</code>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= quick start ======================== -->
+  <section class="sec band" id="quick-start">
+    <div class="wrap">
+      <div class="legend reveal"><span>quick start</span></div>
+      <div class="sec-head">
+        <h2 class="reveal">Five commands, in this order.</h2>
+        <p class="lede reveal">
+          You need an OCI account (Pay-As-You-Go greatly improves free ARM capacity - an idle
+          2 OCPU / 12 GB A1 instance stays free), the OCI CLI configured with an API key, an SSH
+          keypair, and bash. Order matters for step 02: cap the tenancy before anything can launch.
+        </p>
+      </div>
+
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-idx">01</div>
+          <div class="step-body">
+            <h3>Configure</h3>
+            <p>Copy the example config and edit your region, server name, player cap and passwords.
+              This one file drives every other script. It is gitignored, because it holds secrets.</p>
+            <pre><span class="p">$</span> cp config.env.example config.env</pre>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-idx">02</div>
+          <div class="step-body">
+            <h3>Cap the tenancy first</h3>
+            <p>Applies the <code class="mono">always-free-guardrail</code> quota policy. Do this
+              before you provision anything, so the ceiling is already in place when you launch.</p>
+            <pre><span class="p">$</span> scripts/04-quota-guardrail.sh</pre>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-idx">03</div>
+          <div class="step-body">
+            <h3>Create the network</h3>
+            <p>VCN, subnet, internet gateway and the security list rules for UDP 8211, UDP 27015
+              and SSH.</p>
+            <pre><span class="p">$</span> scripts/01-network.sh</pre>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-idx">04</div>
+          <div class="step-body">
+            <h3>Launch</h3>
+            <p>Launches the instance and hands it the cloud-init template. It installs Docker and
+              starts Palworld by itself; under box64 the first SteamCMD download takes a while, and
+              the container reports <code class="mono">unhealthy</code> until it finishes. That is
+              expected.</p>
+            <pre><span class="p">$</span> scripts/02-launch.sh
+<span class="p">$</span> scripts/manage.sh logs   <span class="c"># watch it come up</span></pre>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-idx">05</div>
+          <div class="step-body">
+            <h3>Off-site backups (optional)</h3>
+            <p>Creates the bucket and a write-only PAR, and installs the cron that ships compressed
+              saves every six hours. The PAR expires after a year - re-run to rotate it.</p>
+            <pre><span class="p">$</span> scripts/03-backup-setup.sh</pre>
+          </div>
+        </div>
+      </div>
+
+      <p class="lede reveal" style="margin-top: var(--s6)">
+        Then join with <strong>direct connect</strong> to
+        <code class="mono">&lt;PUBLIC_IP&gt;:8211</code>, using the password from your config if you
+        set one. The public IP is ephemeral - <code class="mono">scripts/manage.sh ip</code> re-fetches
+        it after a stop/start.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========================== commands ========================== -->
+  <section class="sec" id="commands">
+    <div class="wrap">
+      <div class="legend reveal"><span>everyday commands</span></div>
+      <div class="sec-head">
+        <h2 class="reveal">Running it afterwards.</h2>
+      </div>
+
+      <div class="table-scroll reveal">
+        <table>
+          <thead>
+            <tr><th scope="col">Command</th><th scope="col">Does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="cmd">manage.sh status</td><td class="desc">Instance state, container health, public IP</td></tr>
+            <tr><td class="cmd">manage.sh ip</td><td class="desc">Print the current public IP (it is ephemeral)</td></tr>
+            <tr><td class="cmd">manage.sh stop</td><td class="desc">Graceful stop - halts compute billing, keeps the disk</td></tr>
+            <tr><td class="cmd">manage.sh start</td><td class="desc">Boot the instance again (the IP may change)</td></tr>
+            <tr><td class="cmd">manage.sh logs</td><td class="desc">Tail the Palworld container logs</td></tr>
+            <tr><td class="cmd">manage.sh restart</td><td class="desc">Restart just the game container</td></tr>
+            <tr><td class="cmd">manage.sh ssh</td><td class="desc">Interactive SSH into the instance</td></tr>
+            <tr><td class="cmd">update-server.sh</td><td class="desc">Update to the latest Palworld build, backing up first</td></tr>
+            <tr><td class="cmd">import-save.sh &lt;save&gt;</td><td class="desc">Load an existing or converted world onto the server</td></tr>
+            <tr><td class="cmd">reset-world.sh</td><td class="desc">Wipe the saves for a fresh world</td></tr>
+            <tr><td class="cmd">teardown.sh [--all]</td><td class="desc">Terminate the instance; <code class="mono">--all</code> also removes the network and bucket</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="split" style="margin-top: var(--s7)">
+        <div class="ops reveal">
+          <h3>Loading an existing world</h3>
+          <pre><span class="p">$</span> scripts/import-save.sh converted-save.zip</pre>
+          <ul>
+            <li>Takes a <b>.zip</b>, <b>.tar.gz</b> or directory, and finds the save root by locating <code class="mono">Level.sav</code>.</li>
+            <li>Installs into the world folder the server already loads, so world ID, settings and the backup cron keep working.</li>
+            <li>Skips <code class="mono">WorldOption.sav</code> by default, because it would silently override the game settings from your config.</li>
+            <li>Writes a local rollback tarball and prints the command to undo it.</li>
+          </ul>
+        </div>
+
+        <div class="ops reveal">
+          <h3>Updating to a new build</h3>
+          <pre><span class="p">$</span> scripts/update-server.sh</pre>
+          <ul>
+            <li>Takes a fresh off-site backup, pulls the latest image, and recreates the container so SteamCMD fetches the new build.</li>
+            <li>The world lives on a separate volume, so it survives the update.</li>
+            <li>On ARM a verify step can stall mid-download under box64 - the script watches for it and nudges the container.</li>
+            <li><code class="mono">--no-wait</code> starts the update and returns immediately.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= guardrail ========================== -->
+  <section class="sec band" id="guardrail">
+    <div class="wrap">
+      <div class="legend reveal"><span>cost safety</span></div>
+      <div class="guard">
+        <div class="guard-copy">
+          <h2 class="reveal">Upgrading to Pay-As-You-Go quietly removes your ceiling.</h2>
+          <div class="reveal">
+            <p class="lede">
+              The free-trial service limits are what stop a trial account from spending money. Upgrade
+              to Pay-As-You-Go - which you want to do, because it is what makes free ARM capacity
+              actually available - and those limits are raised out of the way. Nothing then prevents an
+              expensive deployment except your own care.
+            </p>
+            <p class="lede">
+              A budget alert only tells you afterwards. So this project ships a compartment quota that
+              puts the ceiling back by policy: A1 capped at 2 OCPU and 12 GB, block storage at 200 GB,
+              and every paid compute shape zeroed. It applies to new provisioning, so your running
+              server is unaffected.
+            </p>
+            <p class="lede">
+              The repo's <code class="mono">CLAUDE.md</code> also instructs any AI assistant working in
+              it to verify resources against Oracle's live Always Free documentation and to stop and ask
+              before creating anything paid.
+            </p>
+          </div>
+        </div>
+
+        <div class="guard-side">
+        <div class="limits reveal">
+          <div class="limits-head">observed on this tenancy</div>
+          <div class="table-scroll" style="border: 0; border-radius: 0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Service limit</th>
+                  <th scope="col">Trial</th>
+                  <th scope="col">PAYG</th>
+                  <th scope="col">Quota</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>standard-a1-core-count</td>
+                  <td class="was">2</td>
+                  <td class="up">250</td>
+                  <td class="capped">2</td>
+                </tr>
+                <tr>
+                  <td>standard-a1-memory-count</td>
+                  <td class="was">12</td>
+                  <td class="up">1666</td>
+                  <td class="capped">12</td>
+                </tr>
+                <tr>
+                  <td>standard-e5-core-count</td>
+                  <td class="was">0</td>
+                  <td class="up">83</td>
+                  <td class="capped">0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="limits-foot">
+            oci limits value list still reports the raw limit &mdash; effective-quota-value is the number
+            that gates provisioning
+          </div>
+        </div>
+
+        <div class="reveal">
+          <div class="legend" style="margin-bottom: var(--s3)"><span>the policy itself</span></div>
+<pre class="policy">set compute-core   quota standard-a1-core-count   to 2   in tenancy
+set compute-memory quota standard-a1-memory-count to 12  in tenancy
+set block-storage  quota total-storage-gb         to 200 in tenancy
+zero compute-core  quota standard-e5-core-count          in tenancy
+<span class="c"># ...and 14 more paid compute shapes zeroed</span></pre>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== closing =========================== -->
+  <section class="sec">
+    <div class="wrap close">
+      <h2 class="reveal">Bring your own tenancy.</h2>
+      <p class="lede reveal" style="text-align: center">
+        Clone it, fill in one config file, and run five scripts. Everything it creates, it can also
+        tear back down.
+      </p>
+      <pre class="reveal"><span class="p">$</span> git clone https://github.com/wj-tan/palworld-server.git
+<span class="p">$</span> cd palworld-server
+<span class="p">$</span> cp config.env.example config.env</pre>
+      <div class="hero-actions reveal" style="justify-content: center">
+        <a class="btn btn-primary" href="https://github.com/wj-tan/palworld-server">Open the repository</a>
+        <a class="btn btn-ghost" href="https://github.com/wj-tan/palworld-server/blob/main/docs/OCI-NOTES.md">Read the OCI notes</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-in">
+    <span>MIT licensed</span>
+    <span>Server image: <a href="https://github.com/thijsvanloef/palworld-server-docker">palworld-server-docker</a></span>
+    <span class="right">Not affiliated with Pocketpair or Oracle</span>
+  </div>
+</footer>
+
+<script src="assets/motion.min.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
