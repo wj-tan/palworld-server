@@ -6,6 +6,8 @@ instance, off-site backups, and lifecycle management scripts.
 
 Runs on **ARM (Always Free)** via box64 emulation, or **x86 (paid, native)**.
 
+**→ [wj-tan.github.io/palworld-server](https://wj-tan.github.io/palworld-server/)**
+
 ---
 
 ## What you get
@@ -171,8 +173,10 @@ docs/index.html           landing page (see below)
 
 ## Landing page
 
-`docs/` doubles as a GitHub Pages site.
-To publish it, go to **Settings → Pages** and set the source to the `main` branch, `/docs` folder.
+`docs/` doubles as a GitHub Pages site, published at
+[wj-tan.github.io/palworld-server](https://wj-tan.github.io/palworld-server/) from the `main`
+branch, `/docs` folder (**Settings → Pages**).
+Pushing to `main` redeploys it; there is no build step.
 
 Everything it needs is vendored under `docs/assets/` - the [Motion](https://motion.dev) animation
 library and the woff2 subsets - so the page has no external requests and works offline.
