@@ -168,20 +168,8 @@ cloud-init/               first-boot deploy template (OCI fixes baked in)
 scripts/                  provisioning + management (source lib.sh for shared helpers)
 state/                    current instance/network OCIDs (gitignored, machine-specific)
 docs/OCI-NOTES.md         free-tier limits + the gotchas this project already handles
-docs/index.html           landing page (see below)
+docs/index.html           landing page (served by GitHub Pages from main /docs)
 ```
-
-## Landing page
-
-`docs/` doubles as a GitHub Pages site, published at
-[wj-tan.github.io/palworld-server](https://wj-tan.github.io/palworld-server/) from the `main`
-branch, `/docs` folder (**Settings → Pages**).
-Pushing to `main` redeploys it; there is no build step.
-
-Everything it needs is vendored under `docs/assets/` - the [Motion](https://motion.dev) animation
-library and the woff2 subsets - so the page has no external requests and works offline.
-Open `docs/index.html` directly, or serve the folder with `python -m http.server` if you want the
-relative asset paths to behave exactly as they will in production.
 
 > **Cost policy:** this project is Always-Free-only. `CLAUDE.md` instructs any AI assistant
 > to verify resources against the [live Always Free docs](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm)
